@@ -1,0 +1,302 @@
+---
+title: "Computer Assignment 4 - PCA and Clustering"
+author: "Rui Li"
+header-includes:
+- \usepackage{amsgen,amsmath,amstext,amsbsy,amsopn,amssymb,mathabx,amsthm,bm,bbm}
+- \usepackage[labelsep=space]{caption}
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+subtitle: $\textbf{Machine Learning, Spring 2020}$
+---
+
+>Important note: We are noticing that there have been a lack of informative titles on the plots turned in for Computer Assignments.  This is partly our fault, since not all plots given as examples have had titles.  For the remainder of class we hope to improve on this, just as we hope to instill in each of you the habit of INFORMATIVE titles.  Please try and make your plots as informative as possible moving forward.  This is a valuable skill.
+
+# PCA for Authorship Identification
+We will now apply above analysis to an interesting real life example. 
+
+In 1787, after the American Revolution, the colonies were debating whether to ratify the new Constitution.  Three men - John Jay, James Madison, and [Alexander Hamilton](https://www.youtube.com/watch?v=VhinPd5RRJw) - wrote a series of essays in support of the Constitution, known as the Federalist Papers.  In total, 85 papers were included.
+
+Historical evidence shows that Jay authored 5 papers, Madison 14, and Hamilton 51.  A further 3 were joint efforts between Madison and Hamilton.  The remaining 12 are disputed.  We will use PCA to try to guess at the authorship of these papers.
+
+We will use a dataset that consists of word proportions of how many times a particular word was used divided by the total word count of an essay.  This dataset is restricted to 70 [function words](https://en.wikipedia.org/wiki/Function_word) - common words such as "a", "but", and "the".  
+
+Load and parse the data using the following commands:
+```{r, eval = TRUE}
+
+# Load the data
+fed = read.csv("Federalist.txt", header = TRUE)
+
+# Have a look at the data
+head(fed)
+
+# Store the authorship vector separately
+known = fed$Author != "DIS" & fed$Author != "COL"
+auths = fed[, 2]
+auths.known = fed[known, 2]
+
+# Limit the data to known authors
+fed.known = fed[known, -c(1,2)]
+
+```
+
+## Questions
+1. Treating the words as different variables, run PCA on the dataset using the *prcomp()* command.  Here we use *scale = TRUE* to rescale the data.  Are we centering the data here? (Hint: check the manual page!!)  How many PCs are required to explain 80% of the variation in the data? Plot a scree plot of the PCs.
+```{r, eval = TRUE}
+#Run principal components analysis
+pc.fed = prcomp(fed.known, scale = TRUE)
+
+#Summarize the PCA
+summary(pc.fed)
+
+#Make scree plot
+screeplot(pc.fed, type = "lines", main = "Variance explained by PC")
+```
+
+```
+According to the manual page, ‘scale = TRUE cannot be used if there are zero or constant (for center = TRUE) variables’. Therefore, since we have 'scale = TRUE' here, we are not centering the data.
+```
+
+```
+According to the 'summary(pc.fed)' results above, around 23 PCs are required to explain 80% of the variation in the data.
+```
+2. Make individual plots the first 3 PCs.  Color the points by author by using the *col = auths.known* command in the *pairs()* function.
+
+```{r, eval = TRUE}
+#Individual Plots
+##Partition the image space into a 2 x 2 grid
+par(mfrow = c(2,2))
+for(i in 1:3){
+  plot(pc.fed$x[,i], 
+      main = paste("PC", eval(i)), 
+      xlab = "Sample Index",
+      ylab = paste("PC", eval(i), "score"), 
+      col = auths.known)
+}
+
+#Pair Plots
+pairs(pc.fed$x[,1:3], col = auths.known, main = "Pairs Plot of First Three PCs")
+```
+
+Does the data cluster by author?  No need to explicitly cluster just yet; simply give your perspective on what you see in the biplots.  How many dimensions would you project onto to separate essays by author?
+
+```
+Based on the plots above, only PC1 shows apperant data cluster by author. Thus, I would project onto only one dimension to separate essays by author.
+```
+
+Now let's check to see if clustering confirms what we can see visually!  Perform kmeans clustering on the first two principle components using the following code.  
+
+```{r, eval = TRUE}
+library(ggplot2)
+set.seed(1)
+km <- kmeans(pc.fed$x[,1:2], centers = 3)
+ggplot(, aes(x = pc.fed$x[,1], y = pc.fed$x[,2])) +
+  geom_point(aes(col = as.factor(auths.known), pch = as.factor(km$cluster))) + xlab("First PC") + ylab("Second PC") +
+  scale_colour_discrete(name = "Author") + scale_shape_discrete(name = "Cluster") + geom_point(aes(x = km$centers[,1], y = km$centers[,2], pch = factor(1:3))) + ggtitle("Clusters of First Two PCs; Colored by Author")
+```
+
+## Questions
+
+1. Comment on the given plot.  How well was kmeans able to distinguish the authorship?
+```
+Personally, kmeans did not distinguish the authorship quite well. Because cluster 3 are not spherical, and the clusters do not have the same scatter. 
+```
+2. What is the within-cluster sum of squares for this particular clustering?
+```{r, eval=TRUE}
+km
+```
+
+```
+The within cluster sum of squares by cluster are 153.85046, 112.29383, 17.68665 repectively.
+```
+# Prediction
+
+We will now use the low-dimensional projection to help us guess about the disputed authorship.  The function *predict()* will take information from a previous PCA and project new data onto the PC dimensions.  Use the following code to find the projections for the disputed and collaborative essays.
+
+```{r, eval = TRUE}
+fed.disp = fed[auths == "DIS", -c(1,2)]
+fed.collab = fed[auths == "COL", -c(1,2)]
+disp.pred = predict(pc.fed, fed.disp)
+collab.pred = predict(pc.fed, fed.collab)
+```
+
+
+## Questions
+1. Plot the known data in first two PC dimensions, and color it by authorship (this will use *col = auths.known*).  Then add the projection of the collaborative papers onto the first to PCs to the plot.  We have provided most the the code to the latter plot because it was a little tricky.  Make sure to add an informative title. If you would like a challenge, try to implement this last plot in ggplot (this is optional).
+
+Make sure you label the axes and plot appropriately.
+
+```{r, eval = TRUE}
+known.pred = predict(pc.fed, fed.known)
+plot(known.pred[,1:2],col=auths.known, main = "Plot of First Two PCs; Colored by Author with Known")
+
+# To add the collaborative papers
+## NOTE: Make sure to run the 'plot' and 'legend' commands simultaneously.  It will NOT WORK
+##       if you do it line by line.
+all.classifiers = as.factor(c(as.character(auths.known), rep("COL", times =nrow(collab.pred))))
+plot(rbind(pc.fed$x[,1:2], collab.pred[,1:2]), col = all.classifiers, main = "Plot of First Two PCs; Colored by Author with Collabs") 
+legend(-10, 5,legend = c("AH", "COL", "JJ", "JM"), col = as.character(1:4), pch=rep(1, times = 4))
+```
+
+Based on this plot, who do you think did the primary work on the collaborations?
+
+```
+I think 'James Madison' did primary work on the collaborations, because 'COL' and 'JM' belong to the same cluster.
+```
+
+2. Now add the projection of the disputed papers to the plot.  Mimic what was done on the previous plot to do this.  Based on this, who do you think authored the 12 papers?
+```{r, eval = TRUE}
+all.classifiers = as.factor(c(as.character(auths.known), rep("DIS", times =nrow(disp.pred))))
+plot(rbind(pc.fed$x[,1:2], disp.pred[,1:2]), col = all.classifiers, main = "Plot of First Two PCs; Colored by Author with Disputed") 
+legend(-10, 5,legend = c("AH", "DIS", "JJ", "JM"), col = as.character(1:4), pch=rep(1, times = 4))
+```
+
+```
+I think 'James Madison' authored the 12 papers, because 'DIS' and 'JM' belong to the same cluster.
+```
+
+# k-means
+
+Now that we have seen a basic example of how to use kmeans with the Federalist papers, we are going to get further practice with a gene data example.
+
+Load and parse the TCGA data from the course website using the following commands:
+```{r, eval = TRUE}
+#Load the data
+trial.sample = read.table("TCGA_sample.txt", header = TRUE)
+#Store the subtypes of tissue and the gene expression data
+Subtypes = trial.sample[,1]
+Gene.Expression = as.matrix(trial.sample[,2:2001])
+```
+
+To run the $k$-means algorithm on the rows of a matrix $X$, the *kmeans(X, k, iter.max)* command can be used where $k$ is the number of clusters to find and *iter.max* is the maximum number of iterations used to find the $k$ partition. Once you run *y = kmeans(x,k,iter.max)*, you can type *y$\$$cluster* to obtain the cluster labels of the data points. Also, you can type *y$\$$tot.withinss* to obtain the total within cluster sum of squares (WCSS) for the identified partition. 
+
+Recall that $k$-means searches for the partition of the data that minimizes the WCSS for a fixed $k$. To get an idea of how $k$ affects the WCSS, run k means for k from 1 to 20 and calculate the WCSS for each partition. Then, plot the WCSS across $k$ by using the following code:
+
+```{r, eval = TRUE}
+withinss = rep(NA, 20)
+
+for(k in 1:20){
+	z = kmeans(Gene.Expression,k,iter.max = 100)
+	withinss[k] = z$tot.withinss
+}
+
+plot(withinss, xlab = "k", ylab = "WCSS", main = "k means on TCGA")
+```
+
+## Questions:
+
+1. Comment on WCSS as a function of $k$. Do your findings from the above plot make intuitive sense? Why or why not?
+```
+Yes. Because when K is increasing, there will be more groups and more center points, making each point more likely to closer to their cluster center point, and therefore decreases the WCSS value.
+```
+
+2. Comment about the WCSS at $k = 2$.
+```{r, eval=TRUE}
+withinss[2]
+```
+
+3. Re-run k means for $k = 2$ and compare the cluster labels for the results at $k = 2$ with the true subtype labels. What proportion of each cluster contains "Normal" and "Basal" subtypes?
+```{r, eval=TRUE}
+k_2=kmeans(Gene.Expression,2,iter.max = 100)
+
+library(plyr)
+#Count Cluster 1 and 2
+cluster_1 = count(k_2$cluster)[1,2]
+cluster_2 = count(k_2$cluster)[2,2]
+
+#Count 'Normal' and 'Basal'
+cluster_1_Basal = count(k_2$cluster==1&Subtypes=='Basal')[2,2]
+count(k_2$cluster==2&Subtypes=='Basal')[2,2]# The value is NA.
+cluster_2_Basal = 0
+cluster_1_Normal = count(k_2$cluster==1&Subtypes=='Normal')[2,2]
+cluster_2_Normal = count(k_2$cluster==2&Subtypes=='Normal')[2,2]
+
+print(paste("Cluster 1 contains 'Normal': ", cluster_1_Normal/cluster_1))
+print(paste("Cluster 1 contains 'Basal': ", cluster_1_Basal/cluster_1))
+print(paste("Cluster 2 contains 'Normal': ", cluster_2_Normal/cluster_2))
+print(paste("Cluster 2 contains 'Basal': ", cluster_2_Basal/cluster_2))
+```
+
+
+# k-means with Principal Component Analysis
+
+It would be nice if we could visualize the clusters we just found, like we did with the Federalist Papers data.  However, the TCGA data we are using has 2000 dimensions - and this is just a subset of the full data, which has about 20,000 genes!  Luckily, we already have a way to reduce the dimensions of a dataset: PCA!
+
+ Perform PCA on the dataset *Gene.Expression* using the following code:
+ 
+```{r, eval = TRUE}
+pc.tcga = prcomp(Gene.Expression)
+```
+
+## Questions:
+1.  Plot the projections in the first two PC dimensions. Color by subtype using the *col = Subtypes* command in *plot( )*.  Make sure to label your axes.  Do the subtypes appear to cluster in this low-dimensional projection?
+
+```{r, eval=T}
+gene.pred = predict(pc.tcga, Gene.Expression)
+plot(gene.pred[,1:2],col=Subtypes, main = "Plot of First Two PCs; Colored by Subtypes")
+```
+
+2. Now plot the first two PC dimensions, coloring by the cluster you found in Part 1, Question 3.  How well do these clusters appear to match the true subtypes?
+
+```{r, eval = T}
+plot(gene.pred[,1:2],col=k_2$cluster, main = "Plot of First Two PCs; Colored by Clusters")
+```
+
+```
+The clusters appear to match pretty well with the true sybtypes, because the colored points nealy scattering the same as the plot above.
+```
+3. Perform $k$-means using **only** the first two PC dimensions.  Plot the data one more time, coloring by the clusters found.  What is the total within-cluster sum of squares for this clustering?
+
+```{r, eval = TRUE}
+set.seed(1)
+k.pca = kmeans(pc.tcga$x[,1:2], centers = 2)
+
+plot(gene.pred[,1:2],col=k_2$cluster, main = "Plot of First Two PCs; Colored by Clusters")
+
+print("The total within-cluster sum of squares for this clustering is:")
+k.pca$tot.withinss
+```
+
+4. In your own words, explain why using PCA to reduce the number of dimensions from 2000 to 2 did not significantly change the results of $k$-means.
+
+YOUR ANSWER HERE
+
+5. When passing a number $x$ as the argument for `centers` to the kmeans algorithm, $x$ cluster centers are chosen randomly, points are assigned to a cluster based on these centers, and then the cluster centers are iteratively updated in an attempt to find the centers that minimize total within-cluster sum of squares.  The number of times `kmeans` updates is controlled by the argument `iter.max`.  To examine how the choice of initial centers affects the algorithm, we will disable the updating steps via `iter.max` and choose some initial cluster centers of our own.
+
+```{r, eval = T}
+# First, we create a dummy data set
+random_data = data.frame(x = c(rnorm(1000, mean = 1), rnorm(1000, mean = 3)), 
+                         y = c(rnorm(1000, mean = 1), rnorm(1000, mean = 3)), 
+                         group = c(rep("Group 1", times = 1000), rep("Group 2", times = 1000)))
+# This data set looks like:
+ggplot(random_data, aes(x = x, y = y, col = group)) + geom_point() + ggtitle("Plot of Dummy Data")
+# We'll perform the kmeans with two random centers:
+random.km = kmeans(random_data[,1:2], centers = 2, iter.max = 1)
+ggplot(random_data, aes(x = x, y = y, col = group, pch = as.factor(random.km$cluster))) + geom_point() + 
+  scale_shape_discrete(name = "Cluster") + ggtitle("Plot of Dummy Data; Clustered")
+# Which gives the following within-cluster sum of squares:
+random.km$tot.withinss
+```
+
+```{r, eval = T}
+my_centers = random_data[1:2, 1:2]
+random.km = kmeans(random_data[,1:2], centers = my_centers, iter.max = 1)
+ggplot(random_data, aes(x = x, y = y, col = group, pch = as.factor(random.km$cluster))) + geom_point() + 
+  scale_shape_discrete(name = "Cluster") + ggtitle("Plot of Dummy Data; Clustered")
+random.km$tot.withinss
+```
+Now, choose your own cluster centers!  These *do not* need to be actual observed points from our data.  Try something weird, and report the total within-cluster sum of squares.  Did it change?  Was it better or worse than the random choice?  Comment as to why you think that is.
+
+```{r, eval = T}
+my_centers = random_data[455:456, 1:2]
+random.km = kmeans(random_data[,1:2], centers = my_centers, iter.max = 1)
+ggplot(random_data, aes(x = x, y = y, col = group, pch = as.factor(random.km$cluster))) + geom_point() + 
+  scale_shape_discrete(name = "Cluster") + ggtitle("Plot of Dummy Data; Clustered")
+random.km$tot.withinss
+```
+
+YOUR ANSWER HERE
+
+
+

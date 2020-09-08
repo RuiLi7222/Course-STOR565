@@ -1,0 +1,477 @@
+---
+title: "Computer Assignment 2 - Exploratory Analysis"
+author: "Rui Li"
+header-includes:
+- \usepackage{amsgen,amsmath,amstext,amsbsy,amsopn,amssymb,mathabx,amsthm,bm,bbm}
+- \usepackage[labelsep=space]{caption}
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+subtitle: $\textbf{Machine Learning, Spring 2020}$
+---
+
+The purpose of this assignment is to walk you through a typical starting analysis of real-world data in `R`.  We will also introduce how to draw from various probability distributions using built-in `R` functions.
+
+## Input/Output
+`scan` and `read.table` are the two main functions in `R` for reading data. The main difference between them lies in that `scan` reads one component (also called "field") at a time while `read.table` reads one line at a time.  Thus, `read.table` requires the data to have a table structure and will create a data.frame in **R** automatically, while `scan` can be flexible but might require effort in manipulating data after reading. Overall, their usages are quite similar. One should pay attention to the frequently used options `file`, `header`, `sep`, `dec`, `skip`, `nmax`, `nlines` and `nrows` in their **R** documents. 
+
+`write.table` is the converse of `read.table`.  While the latter reads data into `R` from a file, the former writes data to a file from `R`.
+
+*Note:* If, in the future, you have data stored in another format, *e.g.* EXCEL or SAS dataset, then you can output it as a CSV file and read it into **R** via the `read.csv` function (which is almost identical to `read.table`).
+
+
+### Questions
+In the folder for HW 1, you can find data on the 1974 Motor Trend US Magazine on a series of road tests they did.   
+
+1. Read the data using read.csv into a data frame called `mtcars_dat`.  This dataset is actually available in base `R`, but for practice use the read.csv() function.
+
+>Important: When reading files into R that are in local directories, you'll need to set your working directory to the place where the file is located.  Do this by going `Session->Set Working Directory->Choose Directory...` and choosing the file in which the data is located.
+
+>Important as well: You have just been given the specific functions you will need to solve this exercise.  Don't know how to use them?  Google them!  Or check the manual page for them by inputting `?read.table()`!  Coding in general requires this sort of independence and tenacity.
+
+```{r eval=TRUE}
+mtcars_dat = read.csv("mtcars.csv")
+```
+
+Use `str(mtcars_dat)` and `head(mtcars_dat)` observe the dimensions and structure of the dataset.  Comment on what you see.  How many different variables are in this dataset?  What are the row names?
+
+```{r eval = TRUE}
+str(mtcars_dat)
+head(mtcars_dat)
+```
+ 
+```
+The `str(mtcars_dat)` compactly displays the internal structure of the dataset `mtcars.csv`, and the `head(mtcars_dat)` displays the first six rows of the dataset.
+
+There are 12 variables in this dataset, including the row names, and the names of the row are different type of tested motors.
+```
+
+2. Make a new data frame called `relevant` consisting only of the columns:  X, mpg, cyl, disp, hp (Hint: consider the `subset` function). 
+
+```{r eval=TRUE}
+relevant = subset(mtcars_dat, select = c(X,mpg,cyl,disp,hp))
+```
+
+3. Make a new data frame called `top_hp` consisting of cars in `relevant` that had greater than or equal to 150 horsepower. 
+
+```{r eval=TRUE}
+top_hp = subset(relevant,hp>=150)
+```
+
+4. Split the data into two groups called `top_hp` and `bottom_hp`, where the former has all observations with greater than or equal to 150 horsepower, and the latter has all observations with less than 150 horsepower.  Now compute the average mpg in each group.
+
+```{r eval=TRUE}
+#Split the data into two groups
+top_hp = subset(relevant,hp>=150)
+bottom_hp = subset(relevant,hp<150)
+
+#Caculate the average mpg in each group
+average_top_mpg = mean(top_hp$mpg)
+average_bottom_mpg = mean(bottom_hp$mpg)
+```
+
+
+
+
+# Data Exploration and Manipulation
+
+Data analysis in **R** starts with reading data into a data.frame object via `scan` and `read.table` as discussed before.  The following step is to explore the profiles of data via various descriptive statistics whose usages are also introduced in the previous sections. Calling the `summary` function with a data.frame input also provides appropriate summaries, *e.g.* means and quantiles for numeric variables and frequencies for factor variables.
+
+What is often the next step is to visualize the data.
+
+## Plots
+Compared to other statistical softwares in data analysis, **R** is very good at graphic generation and manipulation. The plotting functions in **R** can be classified into the high-level ones and low-level ones. 
+
+`plot` is the most generic high-level plotting function in **R**. It will be compatible with most classes of objects that the user uses and will produce appropriate graphics. For example, if one had a numeric vector `x` and imputed it into the plot function (`plot(x)`) this would result in a scatter plot.  Advanced classes of objects like `lm` (fitted result by a linear model) can also be called in `plot`.  Sometimes the best preliminary thing to try when you have any class of data object `x` is `plot(x)`.
+
+Other plotting features include
+
+- High-level plotting options: `type`, `main`, `sub`, `xlab`, `ylab`, `xlim`, `ylim`
+- Low-level plotting functions
+    - **Symbols:** `points`, `lines`, `text`, `abline`, `segments`, `arrows`, `rect`, `polygon`
+    - **Decorations:** `title`, `legend`, `axis`
+- Environmental graphic options (`?par`)
+    - **Symbols and texts:** `pch`, `cex`, `col`, `font`
+    - **Lines:** `lty`, `lwd`
+    - **Axes:** `tck`, `tcl`, `xaxt`, `yaxt`
+    - **Windows:** `mfcol`, `mfrow`, `mar`, `new`
+- User interaction: `location`
+
+Beginners should learn from examples and grab whatever necessary plot when needed instead of going over such an overwhelming brochure. The following sections illustrate two basic scenarios in data analysis. More high-level plotting functions will also be introduced.
+
+### Questions
+
+1. Recall the `mtcars` data set. From the `mtcars_dat` data frame plot a bar chart of each car's mpg.  The x-axis here should be the name of each car `X` and the y-axis should `mpg`.
+
+```{r eval=TRUE}
+barplot(mtcars_dat$mpg, names.arg = mtcars_dat$X, angle = 90, las=2, main = "Car's MPG", ylab = "Miles Per Gallon")
+```
+
+2. Now plot a scatterplot of `mpg` vs. `hp`.  Find the correlation coefficient between these two variables.  Does it reflect what you see on the plot?
+
+```{r eval=TRUE}
+plot(x = mtcars_dat$mpg, y = mtcars_dat$hp, xlab = "Miles/(US) gallon", ylab = "Gross Horsepower", main = "Gross horsepower vs Miles per Gallon")
+
+cor(mtcars_dat$mpg,mtcars_dat$hp)
+```
+
+```
+The correlation coefficient between these two variables is r=-0.78, showing that they are generally negatively correlated, which can be seen on the plot as well. 
+```
+3. Plot a scatterplot of `drat` and `hp`.  Do you observe any linear trend?
+
+```{r eval=TRUE}
+plot(x = mtcars_dat$drat, y = mtcars_dat$hp, xlab = "Rear axle ratio", ylab = "Gross horsepower", main = "Gross horsepower vs Rear axle ratio")
+
+cor(mtcars_dat$drat,mtcars_dat$hp)
+```
+
+```
+From the plot, there is no clear linear trend between the two variables. This result can be proved by the correlation calculation as well, where r=-0.45 showing that they have a loosely relation.
+```
+### Create advanced plots
+If you are a JAVA programmer, then you might anticipate a plotting toolbox to establish graphs layer-by-layer interactively. The `ggplot2` package endows **R** with more advanced and powerful visualization techniques like this. Explore more in [the online package manual](https://cran.r-project.org/web/packages/ggplot2/ggplot2.pdf).
+
+```{r echo=(-(1:2)), results='hide', fig.keep='none', message=FALSE}
+# install.packages("ggplot2")   ## if you don't have the package "ggplot2", run it
+library("ggplot2")
+mu <- mean(iris$Sepal.Length)
+sigma <- sd(iris$Sepal.Length)
+ggplot(iris, aes(Sepal.Length)) +
+  geom_histogram( aes(y = ..density..),
+                  bins = 8, color = "black", fill = "white") +
+  geom_density(aes(color = "blue")) +
+  stat_function( aes(color = "red"), 
+                 fun = dnorm, args = list(mean = mu, sd = sigma)) +
+  labs(title = "Histogram of Sepal_Length") +
+  scale_color_identity( name   = "Density Estimate",
+                        guide  = "legend",
+                        labels = c("Kernel", "Normal")) +
+  theme_bw()
+```
+
+
+### Further Analysis and Practice
+
+Let's again load the `mtcars` dataset into R.  Again, this dataset is actually available in base R, but to practice the input/output features in R we'll load it from a CSV (Comma Separated File).  Make sure the file "mtcars.csv" is in the same directory as this Markdown file, set the working directory, and run the following command.  
+```{r, eval = TRUE}
+# We will first read in the data using the read.table() command,
+my.dat = read.table("mtcars.csv", sep = ",", header = TRUE)
+# then do just a bit of cleaning up:
+row.names(my.dat) = my.dat$X
+my.dat = my.dat[,-1]
+# It may have been easier here to use the read.csv() function.  Check out it's manual page ?read.csv()
+# to figure out why.
+```
+
+The *read.table()* function can be used to import, or read, data from pre-saved files including .txt, .csv, .xlsx or files available online. Similarly, the *write.table()* function can be used to write a saved **R** variable to a .txt, .csv, or .xlsx file.
+
+### Questions
+
+1. Remember that once we read in a dataset with **R**, the value will be a data.frame type. Try to change our data.frame into a matrix type by using, for example, the *dat.1 = as.matrix(dat.1)* command. 
+
+```{r, eval = TRUE}
+as.matrix(my.dat)
+```
+
+2. Calculate the standard deviation and the 5-number summary for each of the columns using the *summary()* and *sd()*. Also, estimate the coefficient of variation ($c_v = \sigma / \mu$) for each of the columns of our dataset.
+
+```{r, eval = TRUE}
+#Standard deviation of each column
+for (i in 1:ncol(my.dat)) {
+  print(paste("The standard deviation of column ",i, " is ",sd(my.dat[,i])))
+}
+#5-number Summary for each column
+summary(my.dat)
+#Coefficient of variance
+for (i in 1:ncol(my.dat)) {
+  print(paste("The coefficient of variance of column ",i, " is ", sd(my.dat[,i])/mean(my.dat[,i])))
+}
+```
+
+3. For columns 1, 3, and 6, find the following information:
++ Whether the data is integer or non-integer valued
++ Mean
++ Median
++ Standard deviation
++ Coefficient of variation (if applicable)
+(Use the *summary()* and *sd()* commands.)
+
+```{r, eval = TRUE}
+for (i in c(1,3,6)) {
+  print(paste("For column ",i,": "))
+  print("Non-integer")
+  print(paste("Mean: ",as.numeric(summary(my.dat[,i])[4])))
+  print(paste("Median: ",as.numeric(summary(my.dat[,i])[3])))
+  print(paste("Standard deviation: ",sd(my.dat[,i])))
+  print(paste("Coefficient of variation: ",sd(my.dat[,i])/as.numeric(summary(my.dat[,i])[4])))
+}
+```
+
+4. Comment on the similarities and differences between each of these samples.
+
+```
+All have non-integer values. Three columns have very different mean and median value: column 1 has the largest values, column 3 the second, and the column 6 the last.
+
+However, their mean and median are very closed, and they have similar coefficient of variance: column 1 is 0.3, column 3 is 0.5, and column 6 is 0.3.
+```
+
+## Empirical cumulative distribution functions
+The empirical cumulative distribution function (ECDF) of a random sample provides a summary of the sample based on the order (smallest to largest) of the sample. When the sample is perceived to come from a probability distribution, the ECDF can be used to estimate the true cumulative distribution function of the sample. We can calculate the ECDF of a sample by using the *ecdf()* command in **R**. Plot the ECDF of the first, fourth, and fifth columns. 
+```{r, eval = TRUE}
+# plot the ecdf of car miles per gallon and color it green
+plot(ecdf(my.dat$mpg), col = "green")
+
+# plot the ecdf of rear axle ratio, color it blue
+plot(ecdf(my.dat$drat), col = "blue")
+
+# plot the ecdf of car weight, color it red
+plot(ecdf(my.dat$wt), col = "red")
+
+```
+
+Next, plot the histograms of each of the same columns using the following code:
+```{r, eval = TRUE}
+# plot the histogram of x1
+hist(my.dat$mpg, main = "Histogram of Miles per Gallon")
+hist(my.dat$drat, main = "Histogram of Rear Axle Ratio")
+hist(my.dat$wt, main = "Histogram of Car Weight")
+```
+### Questions
+
+1. Note that the means of `drat` and `wt` are approximately equal. It may be tempting to think that two samples are similar (or even that they are samples from the same population) when they share the same mean. Do the ECDFs of these variables support this claim?  Examine closely the beginning of each ECDF.
+
+```
+Clearly, the ECDFs of these variables support this claim. First, two ECDFs have similar shape, and value distribution. Then, when Fn(x)=0.5 we can get around x less than 3.5 on both ECDFs. Also, the value range of both ECDFs are from 2 to 5.
+```
+
+2. Comment on what the histograms of each of these samples provides. Do these histograms support the claim that the samples are realizations of the same random variable?  
+
+```
+The histograms display the frequency distribution of each variable. while 'drat' and 'wt' have the similar value range from 2 to 5, the have different distribution, showing that they are less likely to be the samples of same random variable.
+```
+
+## Bivariate relationships and Correlation
+Correlation and covariance are two descriptive statistics that quantify the association between two variables. In **R**, we can calculate the sample correlation between two quantitative variables $x$ and $y$ using the *cor(x,y)* command. Similarly, we can use the *cov(x,y)* command to calculate the covariance between $x$ and $y$. Calculate the pairwise correlations and covariances between `hp`, `drat`, and `weight` using the code below:
+
+```{r, eval = TRUE}
+# calculate pairwise covariances
+attach(my.dat)
+cov.45 = cov(hp,drat)
+cov.46 = cov(hp,wt)
+cov.56 = cov(drat,wt)
+
+# calculate pairwise correlations
+cor.45 = cor(hp,drat)
+cor.46 = cor(hp,wt)
+cor.56 = cor(drat,wt)
+detach(my.dat)
+```
+
+Using the *plot()* command, plot a scatterplot between each pair of the above three variables. Be sure to appropriately label each of these plots. 
+
+```{r, eval = TRUE}
+plot(x=my.dat$hp,y=my.dat$drat,xlab ="Horsepower",ylab="Rear axle ratio", main = "Rear axle ratio vs Horsepower" )
+
+plot(x=my.dat$hp,y=my.dat$wt,xlab ="Horsepower",ylab="Weight", main = "Weight vs Horsepower" )
+
+plot(x=my.dat$drat,y=my.dat$wt,xlab ="Rear axle ratio",ylab="Weight", main = "Weight vs Rear axle ratio" )
+```
+
+### Questions
+
+1. Verify that for each of the pairs (`hp`, `drat`), (`hp`, `wt`), and (`drat`, `wt`), the correlation is the quotient of the covariance and the product of the standard deviations.
+
+```{r, eval = TRUE}
+print(cor.45 - cov.45/(sd(my.dat$hp)*sd(my.dat$drat)))
+print(cor.46 - cov.46/(sd(my.dat$hp)*sd(my.dat$wt)))
+print(cor.56 - cov.56/(sd(my.dat$drat)*sd(my.dat$wt)))
+```
+
+2. Comment on each of the generated scatterplots. What does the correlation tell us about the relationships shown in the scatterplots? Does the covariance provide similar information as the correlation? 
+
+```
+For the first plot "hp vs drat", the correlation is -0.45 showing that they have negative relation but the relation is very loose; for the plot "hp vs wt", the correlation is 0.7 showing that they have a positive relation, and the relation is quite strong; for the plot "drat vs wt", the correltion is -0.7 showing that they have a negative relation, and the relation is quite strong.
+
+While the covariance does measure the directional relationship between two variables, it does not show the strength of the relationship between the them. 
+
+Covariance provides different information as the correlation. When covariance is positive, the mean of two variables moving together, when they move inversely, the covariance is negative.
+```
+
+## t-tests
+One way to test for statistically significant differences between two samples is to use a formal hypothesis test known as the t-test. There are two types of t-statistics that we will consider: the *Student's* t-statistic and the *Welsh* t-statistic. These statistics are used in different situations depending on the variance of the two samples being compared. You can use the typical Student's t-test whenever variances are the same, but should use Welsh's whenever the variances are not equal.
+
+Consider comparing two samples $x$ and $y$. We can calculate either of these t-test statistics using the function *t.test()*. In particular, if the variance of the two samples are **not** equal, then we use the command *t.test(x, y, var.equal = FALSE)*. If the variances **are** equal, then we use the command *t.test(x, y, var.equal = TRUE)*. 
+
+### Questions
+
+1. Which t-statistic is appropriate to compare the samples `hp` and `wt`? How about `drat` and `vs`?
+
+```{r, eval=TRUE}
+var.hp = sd(my.dat$hp)^2
+var.wt = sd(my.dat$wt)^2
+var.drat = sd(my.dat$drat)^2
+var.vs = sd(my.dat$vs)^2
+```
+
+```
+The Welch's t-statistic is appropriate to compare the samples 'hp' and 'wt'. Because they have different variance, (var.hp=4700, and var.wt=0.95).
+
+The Student's t-statistic is appropriate to compare the samples 'drat' and 'vs'. Because they have similar variance, (var.drat=0.29, and var.vs=0.25).
+```
+
+2. Calculate the t-statistic to compare `hp` and `wt`. Are the two samples statistically significantly different at a 0.05 level? 
+```{r, eval = TRUE}
+t.test(my.dat$hp,my.dat$wt,var.equal = FALSE)
+```
+```
+Since the p-value=4.9e-13 which is smaller than 0.05, the two samples are statistically significantly different at a 0.05 level.
+```
+3. Repeat (2) for `drat` and `vs`.
+
+```{r, eval = TRUE}
+t.test(my.dat$drat,my.dat$vs,var.equal = TRUE)
+```
+```
+Since the p-value<2.2e-16 which is smaller than 0.05, the two samples are statistically significantly different at a 0.05 level.
+```
+## Fisher's iris data
+Now we will apply the above techniques to further explore the *iris* data set in **R**.  Suppose we want to study the data in the *iris* dataset by flower species.  It is easy in **R** to subset datasets based on there variables.  For example:
+
+```{r, eval = TRUE}
+# Load the iris data
+data(iris)
+
+# Make the setosa species subset
+iris.setosa = iris[iris$Species == "setosa", ]
+
+# Look at the five-number summary for only the setosa species
+summary(iris.setosa)
+```
+
+As you work with more datasets/subsets and more variables, it can become repetitive to call variables via $.  A useful function in **R** is *with()*, which wraps around your code and specifies which dataset to work with.  Try the following examples:
+
+```{r, eval = TRUE}
+#Plot a scatterplot between the sepal length and the petal length
+with(iris, 
+plot(Sepal.Length, Petal.Length, xlab = "Sepal Length", ylab = "Petal Length"))
+
+#Plot a scatterplot between the sepal length and the petal length for only setosa species
+with(iris.setosa, 
+plot(Sepal.Length, Petal.Length, xlab = "Sepal Length", ylab = "Petal Length"))
+```
+
+Answer each of the following questions.
+
+### Questions
+
+1. Make a table that includes the five-number summary as well as standard deviation of the petal length and petal width of a) all 150 flowers, b) setosa species, and c) virginica species.
+
+```{r, eval = TRUE}
+#Prepare for the table
+iris.petal=as.data.frame(matrix(NA, ncol = 7, nrow = 6),row.names = c("all_petal length","all_petal width","setosa_petal length","setosa_petal width","virginica_petal length","virginica_petal width"))
+
+names(iris.petal)=c("Minimum","1st Quartile","Median","Mean","3rd Quartile","Maximum","Standard Deviation")
+
+#Assign corresponding value
+for (i in 1:ncol(iris.petal)) {
+  if(i==ncol(iris.petal)){
+    iris.petal[1,i]=sd(iris$Petal.Length)
+    iris.petal[2,i]=sd(iris$Petal.Width)
+    iris.petal[3,i]=sd(iris$Petal.Length[iris$Species=="setosa"])
+    iris.petal[4,i]=sd(iris$Petal.Width[iris$Species=="setosa"])
+    iris.petal[5,i]=sd(iris$Petal.Length[iris$Species=="virginica"])
+    iris.petal[6,i]=sd(iris$Petal.Width[iris$Species=="virginica"])
+  }else{
+    iris.petal[1,i]=as.numeric(summary(iris$Petal.Length))[i]
+    iris.petal[2,i]=as.numeric(summary(iris$Petal.Width))[i]
+    iris.petal[3,i]=as.numeric(summary(iris$Petal.Length[iris$Species=="setosa"]))[i]
+    iris.petal[4,i]=as.numeric(summary(iris$Petal.Width[iris$Species=="setosa"]))[i]
+    iris.petal[5,i]=as.numeric(summary(iris$Petal.Length[iris$Species=="virginica"]))[i]
+    iris.petal[6,i]=as.numeric(summary(iris$Petal.Width[iris$Species=="virginica"]))[i]
+  }
+  
+}
+
+iris.petal
+```
+
+2. Generate an appropriately labeled scatterplot showing the relationship between the petal length and petal width of all 150 flowers. Calculate the correlation and covariance between these two variables. Based on what you see, comment on the relationship between these two variables.
+
+```{r, eval = TRUE}
+plot(x=iris$Petal.Width, y=iris$Petal.Length, main="Petal length vs. petal width of all 150 flowers", xlab = "Petal Width of All", ylab = "Petal Length of All")
+
+cor(iris$Petal.Width,iris$Petal.Length)
+cov(iris$Petal.Width,iris$Petal.Length)
+```
+```
+From the plot, the correlation is 0.96, and the covariance is 1.30. This indicates that the mean value of the two sample moving together, and they have a strong postive relationship.
+```
+3. Repeat part (b) for the petal length and petal width of a) just the *setosa* species, and b) just the *virginica* species. Comment on what the differences between these two scatterplots and any observations that may be useful in distinguishing the two species.
+
+```{r, eval = TRUE}
+plot(x=iris$Petal.Width[iris$Species=="setosa"], y=iris$Petal.Length[iris$Species=="setosa"], main="Setosa's petal length vs. petal width", xlab = "Setosa's Petal Width", ylab = "Setosa's Petal Length")
+
+cor(iris$Petal.Width[iris$Species=="setosa"],iris$Petal.Length[iris$Species=="setosa"])
+cov(iris$Petal.Width[iris$Species=="setosa"],iris$Petal.Length[iris$Species=="setosa"])
+```
+
+```
+From the setosa specials, we can see both from the plot and the correlation, covariance values that there is no linear relation between petal length and petal width. 
+```
+```{r, eval = TRUE}
+plot(x=iris$Petal.Width[iris$Species=="virginica"], y=iris$Petal.Length[iris$Species=="virginica"], main="Virginica's petal length vs. petal width", xlab = "Virginica's Petal Width", ylab = "Virginica's Petal Length")
+
+cor(iris$Petal.Width[iris$Species=="virginica"],iris$Petal.Length[iris$Species=="virginica"])
+cov(iris$Petal.Width[iris$Species=="virginica"],iris$Petal.Length[iris$Species=="virginica"])
+```
+
+```
+From the virginica specials, we can see both from the plot and the correlation, covariance values that there is no linear relation between petal length and petal width. 
+```
+```
+Even though there is no clear relation on both scatterplot, we can be easily told from the value range of the graph that Virginica has longer petal width and longer petal length than Setosa.
+```
+4. Plot the ECDF of the petal length of the *setosa* and the petal length of the *virginica* species in two different plots. Do the same for the petal width of these two species. Be sure to appropriately label each of the four plots. What do these plots reveal about the relationship between these two species?
+
+```{r, eval = TRUE}
+plot(ecdf(iris$Petal.Length[iris$Species=="setosa"]), col = "green", main="ECDF of *setosa* petal length")
+
+plot(ecdf(iris$Petal.Length[iris$Species=="virginica"]), col = "red", main="ECDF of *virginica* petal length")
+
+plot(ecdf(iris$Petal.Width[iris$Species=="setosa"]), col = "blue", main="ECDF of *setosa* petal width")
+
+plot(ecdf(iris$Petal.Width[iris$Species=="virginica"]), col = "yellow", main="ECDF of *virginica* petal width")
+```
+```
+As for the petal length, the ECDFs of both species have similar shape, but virginica have more value and a longer length.
+As for the petal width, the ECDFs of both species have different shape, and setosa has a popular width of 0.2. Also, virginica have more value and a longer width.
+```
+5. Which t-statistic is appropriate for testing the difference between the petal length of the *setosa* and *virginica* species? Why? Calculate the t-statistic. Are the petal lengths between these two species statistically different? 
+
+```{r, eval = TRUE}
+var.set.len = sd(iris$Petal.Length[iris$Species=="setosa"])^2
+var.vir.len = sd(iris$Petal.Length[iris$Species=="virginica"])^2
+
+t.test(iris$Petal.Length[iris$Species=="setosa"], iris$Petal.Length[iris$Species=="virginica"], var.equal=FALSE)
+```
+```
+The welch t-statistic is appropriate for testing the difference between the peral length of the 'setosa' and 'virginica' species, because they have different variance(setosa is 0.03, and the virginica is 0.30)
+
+Since the p-value of the t-test is less than 2.2e-16, the petal lengths between these two species are statistically different.
+```
+6. Which t-statistic is appropriate for testing the difference between the petal width of the *setosa* and *virginica* species? Why? Calculate the t-statistic. Are the petal widths between these two species statistically different? 
+
+```{r, eval = TRUE}
+var.set.wid = sd(iris$Petal.Width[iris$Species=="setosa"])^2
+var.vir.wid = sd(iris$Petal.Width[iris$Species=="virginica"])^2
+
+t.test(iris$Petal.Width[iris$Species=="setosa"], iris$Petal.Width[iris$Species=="virginica"], var.equal=TRUE)
+```
+```
+The student's t-statistic is appropriate for testing the difference between the peral length of the 'setosa' and 'virginica' species, because they have similar variance(setosa is 0.01, and the virginica is 0.07)
+
+Since the p-value of the t-test is less than 2.2e-16, the petal lengths between these two species are statistically different.
+```
+

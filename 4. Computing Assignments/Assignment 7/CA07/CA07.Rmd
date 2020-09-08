@@ -1,0 +1,138 @@
+---
+title: "Computer Assignment 7 - Logistic Regression and LDA"
+author: "Rui Li"
+header-includes:
+- \usepackage{amsgen,amsmath,amstext,amsbsy,amsopn,amssymb,mathabx,amsthm,bm,bbm}
+- \usepackage[labelsep=space]{caption}
+output:
+  word_document: default
+  pdf_document: default
+  html_document: default
+subtitle: $\textbf{Machine Learning, Spring 2020}$
+---
+
+# 1994 Census Data
+
+Let's walk through an example done during lecture.  First, load the `adults.csv` data (downloaded originally from [here](https://rpubs.com/aelhabr/logistic-regression-tutorial)).
+
+```{r, eval = T}
+adult = read.csv("adults.csv")
+adult$X = NULL
+```
+
+Next, we will run the logistic regression model to predict the classifier `income`, which marks whether a given adult makes $\leq \$50k$ (coded as a 0) or $\geq \$50k$ (coded as a 1).  To assess the performance of our model, we will only build the model on 75% of our data so that we can later use the remaining 25% as a testing data set.
+
+```{r, eval = T}
+set.seed(13)
+training_size <- round(.75 * nrow(adult))  # training set size
+indices = sample(1:nrow(adult), training_size)
+training_set <- adult[indices,]
+testing_set <- adult[-(indices),]
+m1 <- glm(income ~ ., data = training_set, family = binomial('logit'))
+summary(m1)
+```
+
+
+Examine the `summary` of our logistic regression model.  Comment on the significance of each of our predictors.  Do any of the significant predictors surprise you?  Provide an interpretation of what the `Estimate` value is for the predictor `age`.  Your answer should say something about this value's relation to the log-odds.
+
+```
+According to the summary above, we can notice that `age`, `education years`, `married status`, `male`, `working hours`, and `occupation types` have the most significant level to the income.
+
+The significance of `age` and `working hours` surprise me. It is not resonable that one is more likely to have income > $50k when he is older and working longer.
+
+Also, for every one unit change in `age`, the log odds of income>=$50k increases by 0.03.
+```
+
+Now that you have created a model on the `training_data`, use the `predict` function in **R** to use your model to classify the data in the `testing_data`.  What proportion of values were classified correctly?
+
+```{r, eval = T}
+pre_test = as.data.frame(predict(m1, newdata = testing_set, type = "response"))
+pre_class = pre_test$`predict(m1, newdata = testing_set, type = "response")`>=1/2
+true_class = testing_set$income=='>50K'
+glm_correct = (sum((pre_class+true_class)==2)+sum((pre_class+true_class)==0))/length(testing_set$income)
+```
+
+```
+The proportion of correctly classified values is 0.8267.
+```
+Build a LDA model on the `training_data`, and see how well it performs classifying the observations in the `testing_data`.  Compare the proportion of values classified correctly to this same metric we just calculated for the logistic regression model.
+
+```{r, eval = T}
+library(MASS) 
+library(dplyr)
+model_lda = lda(income~., data = training_set)
+lda_predictions <- model_lda %>% predict(testing_set)
+lda_correct = sum(lda_predictions$class==testing_set$income)/length(testing_set$income)
+```
+
+```
+The lda_corrrect is 0.8267, and glm_correct is 0.08267. These two values are quite similar.
+```
+# Magazine Reseller Data
+
+Now, let us apply these same methods on some new data, the given data `kids.csv`.  Each observation of this data set records the demographics of a person as well as whether or not they bought a magazine.  
+
+The variables given are as follows:
+
+1. Household Income (Income; rounded to the nearest $1,000.00)
+2. Gender (IsFemale = 1 if the person is female, 0 otherwise)
+3. Marital Status (IsMarried = 1 if married, 0 otherwise)
+4. College Educated (HasCollege = 1 if has one or more years of college education, 0 otherwise)
+5. Employed in a Profession (IsProfessional = 1 if employed in a profession, 0 otherwise)
+6. Retired (IsRetired = 1 if retired, 0 otherwise)
+7. Not employed (Unemployed = 1 if not employed, 0 otherwise)
+8. Length of Residency in Current City (ResLength; in years)
+9. Dual Income if Married (Dual = 1 if dual income, 0 otherwise)
+10. Children (Minors = 1 if children under 18 are in the household, 0 otherwise)
+11. Home ownership (Own = 1 if own residence, 0 otherwise)
+12. Resident type (House = 1 if the residence is a single-family house, 0 otherwise)
+13. Race (White = 1 if the race is white, 0 otherwise)
+14. Language (English = 1 is the primary language in the household is English, 0 otherwise)
+
+as well as a binary classifier `Buy` that marks whether or not a given person bought a magazine.  
+
+Randomly assign 75% of your data as the training data and the other 25% as your testing data.  Build a logistic regression model on the training, discuss the model summary and significance of the parameter values, and assess the model's performance in the testing data.  Then build a LDA model on the training data and see how well it performs classifying the observations in the testing data.  Compare the proportion of values classified correctly to this same metric we just calculated for the logistic regression model.
+
+This last exercise leaves much of the process up to you!  Go through previous code, google issues, and read manual pages if you get lost.
+
+```{r, eval = T}
+#insert the data sheet and create the training and test data
+kid = read.csv("kids.csv")
+kid$Obs.No.=NULL
+
+set.seed(13)
+training_size <- round(.75 * nrow(kid)) # training set size
+indices = sample(1:nrow(kid), training_size)
+training_kid <- kid[indices,]
+testing_kid <- kid[-(indices),]
+```
+
+```{r, eval=T}
+#set up the glm model
+glm_kid <- glm(Buy ~ ., data = training_kid, family = binomial('logit'))
+summary(glm_kid)
+```
+```
+According to the summary above, we can notice that `income`, `female`, and `white` have the greatest significance on the `buy` logistic model.
+```
+```{r, eval = T}
+#glm correct for kids
+kid_test = as.data.frame(predict(glm_kid, newdata = testing_kid, type = "response"))
+pre_kid = kid_test$`predict(glm_kid, newdata = testing_kid, type = "response")`>=1/2
+true_kid = testing_kid$Buy=='1'
+kid_glm_correct = (sum((pre_kid+true_kid)==2)+sum((pre_kid+true_kid)==0))/length(testing_kid$Buy)
+```
+
+```{r, eval = T}
+#lda for kids
+library(MASS) 
+library(dplyr)
+kids_lda = lda(Buy~., data = training_kid)
+kid_lda_predictions <- kids_lda %>% predict(testing_kid)
+kid_lda_correct = sum(kid_lda_predictions$class==testing_kid$Buy)/length(testing_kid$Buy)
+```
+
+```
+The glm corrects for kids is 0.9345, and the lda corrects for kids is 0.9226, which are quite similar.
+```
+This data, and the information about it, was gotten from [here](https://towardsdatascience.com/real-world-implementation-of-logistic-regression-5136cefb8125).
